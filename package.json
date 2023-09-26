@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Aprendiendo MERN stack",
+  "description": "Proyecto Admi de proyectos",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -12,7 +12,7 @@
     "MERN",
     "Node"
   ],
-  "author": "Juan De la torre",
+  "author": "Luis Soto",
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^5.0.1",
