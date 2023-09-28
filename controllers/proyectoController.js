@@ -1,6 +1,38 @@
 import Proyecto from "../models/Proyecto.js";
 import Usuario from "../models/Usuario.js";
 
+// Funciones validacion
+const validarCampo = (valor, minLength, maxLength, mensaje) => {
+  if (valor.trim().length < minLength) {
+    throw new Error(`El ${mensaje} debe contener mínimo ${minLength} caracteres`);
+  } else if (valor.trim().length > maxLength) {
+    throw new Error(`El ${mensaje} debe contener máximo ${maxLength} caracteres`);
+  }
+};
+
+const validarFechaEntrega = (fechaEntrega) => {
+  const fechaEntregaDate = new Date(fechaEntrega);
+  const fechaActual = new Date();
+  if (fechaEntregaDate < fechaActual) {
+    throw new Error('La fecha de entrega no puede ser menor a la fecha actual');
+  }
+};
+
+const validarProyecto = async (req, res, next) => {
+  const { nombre, descripcion, fechaEntrega, cliente } = req.body;
+
+  try {
+    validarCampo(nombre, 1, 60, 'nombre');
+    validarCampo(descripcion, 1, 100, 'descripción');
+    validarFechaEntrega(fechaEntrega);
+    validarCampo(cliente, 1, 50, 'nombre del cliente');
+    next();
+  } catch (error) {
+    return res.status(403).json({ msg: error.message });
+  }
+};
+
+
 const obtenerProyectos = async (req, res) => {
   const proyectos = await Proyecto.find({
     $or: [
@@ -12,15 +44,18 @@ const obtenerProyectos = async (req, res) => {
 };
 
 const nuevoProyecto = async (req, res) => {
-  const proyecto = new Proyecto(req.body);
-  proyecto.creador = req.usuario._id;
-
-  try {
-    const proyectoAlmacenado = await proyecto.save();
-    res.json(proyectoAlmacenado);
+  
+    try {
+    await validarProyecto(req, res, async () => {
+      const proyecto = new Proyecto(req.body);
+      proyecto.creador = req.usuario._id;
+      const proyectoAlmacenado = await proyecto.save();
+      res.json(proyectoAlmacenado);
+    });
   } catch (error) {
     console.log(error);
   }
+
 };
 
 const obtenerProyecto = async (req, res) => {
@@ -52,31 +87,34 @@ const obtenerProyecto = async (req, res) => {
 };
 
 const editarProyecto = async (req, res) => {
-  const { id } = req.params;
-
-  const proyecto = await Proyecto.findById(id);
-
-  if (!proyecto) {
-    const error = new Error("No Encontrado");
-    return res.status(404).json({ msg: error.message });
-  }
-
-  if (proyecto.creador.toString() !== req.usuario._id.toString()) {
-    const error = new Error("Acción No Válida");
-    return res.status(401).json({ msg: error.message });
-  }
-
-  proyecto.nombre = req.body.nombre || proyecto.nombre;
-  proyecto.descripcion = req.body.descripcion || proyecto.descripcion;
-  proyecto.fechaEntrega = req.body.fechaEntrega || proyecto.fechaEntrega;
-  proyecto.cliente = req.body.cliente || proyecto.cliente;
-
   try {
-    const proyectoAlmacenado = await proyecto.save();
-    res.json(proyectoAlmacenado);
+    await validarProyecto(req, res, async () => {
+      const { id } = req.params;
+
+      const proyecto = await Proyecto.findById(id);
+    
+      if (!proyecto) {
+        const error = new Error("No Encontrado");
+        return res.status(404).json({ msg: error.message });
+      }
+    
+      if (proyecto.creador.toString() !== req.usuario._id.toString()) {
+        const error = new Error("Acción No Válida");
+        return res.status(401).json({ msg: error.message });
+      }
+    
+      proyecto.nombre = req.body.nombre || proyecto.nombre;
+      proyecto.descripcion = req.body.descripcion || proyecto.descripcion;
+      proyecto.fechaEntrega = req.body.fechaEntrega || proyecto.fechaEntrega;
+      proyecto.cliente = req.body.cliente || proyecto.cliente;
+
+      const proyectoAlmacenado = await proyecto.save();
+      res.json(proyectoAlmacenado);
+    })
   } catch (error) {
     console.log(error);
   }
+
 };
 
 const eliminarProyecto = async (req, res) => {
@@ -104,6 +142,20 @@ const eliminarProyecto = async (req, res) => {
 
 const buscarColaborador = async (req, res) => {
   const { email } = req.body;
+
+  const MIN_EMAIL_LENGHT = 1;
+  const MAX_EMAIL_LENGHT = 50;
+  if (email.trim().length < MIN_EMAIL_LENGHT) {
+    const error = new Error(
+      `El email debe contener minimo ${MIN_EMAIL_LENGHT} caracteres`
+    );
+    return res.status(403).json({ msg: error.message });
+  } else if (email.trim().length > MAX_EMAIL_LENGHT) {
+    const error = new Error(
+      `El email debe contener maximo ${MAX_EMAIL_LENGHT} caracteres`
+    );
+    return res.status(403).json({ msg: error.message });
+  }
   const usuario = await Usuario.findOne({ email }).select(
     "-confirmado -createdAt -password -token -updatedAt -__v "
   );
@@ -115,6 +167,9 @@ const buscarColaborador = async (req, res) => {
 
   res.json(usuario);
 };
+
+
+
 
 const agregarColaborador = async (req, res) => {
   const proyecto = await Proyecto.findById(req.params.id);
@@ -186,3 +241,6 @@ export {
   agregarColaborador,
   eliminarColaborador,
 };
+
+
+
