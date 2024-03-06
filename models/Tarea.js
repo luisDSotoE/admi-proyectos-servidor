@@ -35,6 +35,11 @@ const tareaSchema = mongoose.Schema(
       ref: "Usuario",
       default: null,
     },
+    estadotask: {
+      type: String,
+      required: true,
+      default: "por-hacer",
+    },
   },
   {
     timestamps: true,

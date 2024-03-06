@@ -2,12 +2,13 @@ import Usuario from "../models/Usuario.js";
 import generarId from "../helpers/generarId.js";
 import generarJWT from "../helpers/generarJWT.js";
 import { emailRegistro, emailOlvidePassword } from "../helpers/email.js";
+import path from "path";
+import fs from "fs";
 
 const registrar = async (req, res) => {
   // Evitar registros duplicados
-  const { nombre, email, password  } = req.body;
+  const { nombre, email, password } = req.body;
   const existeUsuario = await Usuario.findOne({ email });
-  
 
   if (existeUsuario) {
     const error = new Error("Usuario ya registrado");
@@ -27,7 +28,6 @@ const registrar = async (req, res) => {
     );
     return res.status(403).json({ msg: error.message });
   }
-
 
   const MIN_EMAIL_LENGHT = 1;
   const MAX_EMAIL_LENGHT = 50;
@@ -112,7 +112,6 @@ const autenticar = async (req, res) => {
     );
     return res.status(403).json({ msg: error.message });
   }
-  
 
   // Comprobar si el usuario esta confirmado
   if (!usuario.confirmado) {
@@ -168,13 +167,13 @@ const olvidePassword = async (req, res) => {
     );
     return res.status(403).json({ msg: error.message });
   }
-  
+
   const usuario = await Usuario.findOne({ email });
   if (!usuario) {
     const error = new Error("El Usuario no existe");
     return res.status(404).json({ msg: error.message });
   }
-  
+
   try {
     usuario.token = generarId();
     await usuario.save();
@@ -232,6 +231,98 @@ const perfil = async (req, res) => {
   res.json(usuario);
 };
 
+const uploadFoto = async (req, res) => {
+  if (!req.file) {
+    return res.status(404).send({
+      status: "error",
+      msg: "Petición no tiene imagen",
+    });
+  }
+
+  let image = req.file.originalname;
+  const imageSplit = image.split(".");
+  const extension = imageSplit[1];
+
+  if (
+    extension != "png" &&
+    extension != "jpg" &&
+    extension != "jpg" &&
+    extension != "gif"
+  ) {
+    const filePath = req.file.path;
+    const fileDelete = fs.unlinkSync(filePath);
+    return res.status(400).send({
+      status: "error",
+      msg: "La extension del fichero invalida",
+    });
+  }
+  try {
+    const user = await Usuario.findById(req.usuario.id);
+    if (!user) {
+      return res.status(404).send({
+        status: "error",
+        msg: "Usuario no encontrado",
+      });
+    }
+    user.image = req.file.filename;
+    const userUpdate = await user.save();
+
+    return res.status(200).send({
+      status: "success",
+      user: userUpdate,
+      file: req.file,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      status: "error",
+      msg: "Error en la subida de archivos",
+    });
+  }
+};
+
+const getImage = (req, res) => {
+  const file = req.params.file;
+  const filePath = "./uploads/perfil/" + file;
+
+  fs.stat(filePath, (error, exists) => {
+    if (!exists) {
+      return res.status(404).json({
+        status: "error",
+        msg: "No existe la imagen",
+      });
+    }
+    return res.status(500).sendFile(path.resolve(filePath));
+  });
+};
+
+const actualizarPerfil = async (req, res) => {
+  const user = await Usuario.findById(req.params.id);
+  if (!user) {
+    const error = new Error("Hubo un error");
+    return res.status(400).json({ msg: error.message });
+  }
+
+  const { email } = req.body;
+  if (user.email !== req.body.email) {
+    const existeEmail = await Usuario.findOne({ email });
+
+    if (existeEmail) {
+      const error = new Error("Ese email ya esta en uso");
+      return res.status(400).json({ msg: error.message });
+    }
+  }
+
+  try {
+    user.nombre = req.body.nombre;
+    user.email = req.body.email;
+    const usuarioActualizado = await user.save();
+    res.json(usuarioActualizado);
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 export {
   registrar,
   autenticar,
@@ -240,4 +331,7 @@ export {
   comprobarToken,
   nuevoPassword,
   perfil,
+  uploadFoto,
+  getImage,
+  actualizarPerfil,
 };

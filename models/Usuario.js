@@ -26,6 +26,10 @@ const usuarioSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    image: {
+      type: String,
+      default: "default.png",
+    },
   },
   {
     timestamps: true,

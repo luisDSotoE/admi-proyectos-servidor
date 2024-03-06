@@ -3,26 +3,29 @@ import Tarea from "../models/Tarea.js";
 
 const validarCampoTarea = (valor, minLength, maxLength, mensaje) => {
   if (valor.trim().length < minLength) {
-    throw new Error(`El ${mensaje} debe contener mínimo ${minLength} caracteres`);
+    throw new Error(
+      `El ${mensaje} debe contener mínimo ${minLength} caracteres`
+    );
   } else if (valor.trim().length > maxLength) {
-    throw new Error(`El ${mensaje} debe contener máximo ${maxLength} caracteres`);
+    throw new Error(
+      `El ${mensaje} debe contener máximo ${maxLength} caracteres`
+    );
   }
 };
 const validarFechaEntrega = (fechaEntrega) => {
   const fechaEntregaDate = new Date(fechaEntrega);
   const fechaActual = new Date();
   if (fechaEntregaDate < fechaActual) {
-    throw new Error('La fecha de entrega no puede ser menor a la fecha actual');
+    throw new Error("La fecha de entrega no puede ser menor a la fecha actual");
   }
 };
-
 
 const validarTarea = async (req, res, next) => {
   const { nombre, descripcion, fechaEntrega } = req.body;
 
   try {
-    validarCampoTarea(nombre, 3, 40, 'nombre de la tarea');
-    validarCampoTarea(descripcion, 1, 100, 'descripción');
+    validarCampoTarea(nombre, 3, 40, "nombre de la tarea");
+    validarCampoTarea(descripcion, 1, 100, "descripción");
     validarFechaEntrega(fechaEntrega);
     next();
   } catch (error) {
@@ -30,11 +33,7 @@ const validarTarea = async (req, res, next) => {
   }
 };
 
-
-
-
 const agregarTarea = async (req, res) => {
-
   try {
     validarTarea(req, res, async () => {
       const { proyecto } = req.body;
@@ -51,18 +50,15 @@ const agregarTarea = async (req, res) => {
         return res.status(403).json({ msg: error.message });
       }
 
-
       const tareaAlmacenada = await Tarea.create(req.body);
       // Almacenar el ID en el proyecto
       existeProyecto.tareas.push(tareaAlmacenada._id);
       await existeProyecto.save();
       res.json(tareaAlmacenada);
-
-    })
+    });
   } catch (error) {
     console.log(error);
   }
-
 };
 
 const obtenerTarea = async (req, res) => {
@@ -84,7 +80,6 @@ const obtenerTarea = async (req, res) => {
 };
 
 const actualizarTarea = async (req, res) => {
-
   try {
     validarTarea(req, res, async () => {
       const { id } = req.params;
@@ -107,12 +102,10 @@ const actualizarTarea = async (req, res) => {
       tarea.fechaEntrega = req.body.fechaEntrega || tarea.fechaEntrega;
       const tareaAlmacenada = await tarea.save();
       res.json(tareaAlmacenada);
-
-    })
+    });
   } catch (error) {
     console.log(error);
   }
-
 };
 
 const eliminarTarea = async (req, res) => {
@@ -171,10 +164,30 @@ const cambiarEstado = async (req, res) => {
   res.json(tareaAlmacenada);
 };
 
+const actualizarTaskEstado = async (req, res) => {
+  const { id } = req.params;
+  const { estadoTask } = req.body;
+  const tarea = await Tarea.findById(id).populate("proyecto");
+
+  if (!tarea) {
+    const error = new Error("Tarea no encontrada");
+    return res.status(404).json({ msg: error.message });
+  }
+
+  tarea.estadotask = estadoTask;
+  await tarea.save();
+
+  const tareaAlmacenada = await Tarea.findById(id).populate("proyecto");
+  // .populate("completado");
+
+  res.json(tareaAlmacenada);
+};
+
 export {
   agregarTarea,
   obtenerTarea,
   actualizarTarea,
   eliminarTarea,
   cambiarEstado,
+  actualizarTaskEstado,
 };
